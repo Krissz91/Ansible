@@ -1,0 +1,82 @@
+# Infrastruktúra leírás
+Ebben a gyakorlatban AWS-ben a következő gépeket hozzuk létre:
+
+1 db Ubuntu EC2 példány → control néven (ezen lesz az Ansible telepítve.
+     Fontos, Nem hivják ansible szervernek mert nem futtat semmilyen szolgáltatást.
+     Csak a python modulokat, szkripteket használja, hogy csatlakozon.)
+     control.pem néven létrehozunk egy RSA típusú key pairt
+     Security group name/description - control-sg, type ssh és MyIP source type
+
+2 db CentOS EC2 példány → web01 és web02 néven
+     client-key.pem néven létrehozunk egy RSA típusú key pairt
+     Security group name/description - client-sg, type ssh és MyIP source type
+     Hozzá adunk még egyet type Custom TCP, Custom source type, port range 22 és Source control-sg
+
+1 db CentOS EC2 példány → db01 néven
+     client-key.pem néven létrehozunk egy RSA típusú key pairt
+     Security group name/description - client-sg, type ssh és MyIP source type
+     Hozzá adunk még egyet type Custom TCP, Custom source type, port range 22 és Source control-sg
+
+A control gépről vezéreljük a többi szervert Ansible segítségével.
+
+# Ansible telepítése a control (Ubuntu) gépen
+sudo apt update
+sudo apt upgrade -y
+sudo add-apt-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible -y
+ansible --version
+
+# Projektstruktúra létrehozása
+mkdir -p ~/project/exercise1
+cd ~/project/exercise1
+
+# Inventory fájl létrehozása (Az inventory fajlban lesz a tartalma)
+nano inventory
+
+# PEM fájl kezelése
+1. Lépjünk ki a control gépből.
+
+2. Helyi gépen:
+cat client-key.pem
+Másoljuk ki a tartalmát.
+
+3. Lépjünk vissza a control EC2-re, majd:
+cd ~/project/exercise1
+nano clientkey.pem  # Illesszük be ide a kulcs tartalmát
+chmod 400 clientkey.pem
+
+# Ansible konfiguráció
+Ajánlott saját konfigurációs fájlt használni:
+
+sudo -i
+cd /etc/ansible/
+mv ansible.cfg ansible.cfg_backup
+ansible-config init --disabled -t all > ansible.cfg
+nano ansible.cfg
+
+Szükséges módosítás:
+Keressük meg az alábbi sort:
+
+;host_key_checking = True
+
+És módosítsuk erre:
+
+host_key_checking = False
+
+Ez kikapcsolja az első csatlakozáskor a host key megerősítést.
+
+exit  # kilépés root-ból
+
+# Kapcsolat tesztelése – Ad hoc parancs
+Győződjünk meg róla, hogy a ~/project/exercise1 könyvtárban vagyunk:
+
+pwd
+ls
+
+Majd teszteljük a kapcsolatot egy ad-hoc paranccsal:
+
+ansible web01 -m ping -i inventory
+
+Ha mindent jól csináltunk, pong válasz érkezik.
+
+Használhatsz ansible all -m ping -i inventory, hogy az összes gépet teszteld.

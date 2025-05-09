@@ -1,0 +1,80 @@
+# Projektkörnyezet előkészítése
+1. Készítsünk másolatot a korábbi munkánkról:
+cp -r exercise4/ exercise5
+cd exercise5
+
+2. Töröljük az előző index.html fájlt, mert erre most nincs szükség:
+rm index.html
+
+# Playbook létrehozása – web-db.yaml
+nano web-db.yaml
+Írjuk bele az alábbi tartalmat:
+
+---
+- name: Webserver setup
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Install httpd
+      ansible.builtin.yum:
+        name: httpd
+        state: present
+
+    - name: Start service
+      ansible.builtin.service:
+        name: httpd
+        state: started
+        enabled: yes
+
+- name: DBserver setup
+  hosts: dbservers
+  become: yes
+  tasks:
+    - name: Install mariadb-server
+      ansible.builtin.yum:
+        name: mariadb105-server  # AWS Linuxon a 10.5-ös verzió neve ez
+        state: present
+
+    - name: Start mariadb service
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+# Magyarázat a fenti Playbookhoz
+1. Alapszerkezet
+--- → YAML fájl kezdete
+Minden blokk egy "play", azaz egy futtatási egység.
+hosts: → mely hostokra (vagy csoportokra) fusson.
+become: yes → root jogosultság szükséges (sudo)
+tasks: → itt soroljuk fel az egymás után végrehajtandó feladatokat.
+
+2. Modulok használata
+2.1 yum modul:
+Csomag telepítés/eltávolítás CentOS/Red Hat-alapú gépeken.
+name=httpd, state=present: ha nincs telepítve, felrakja.
+2.2 service modul:
+Szolgáltatások (pl. httpd, mariadb) indítása/leállítása.
+enabled: yes: bekapcsolja automatikus indulásra újraindítás után.
+
+# Előkészítés: korábbi telepítések törlése
+Ha szeretnéd tesztelni a playbook működését tiszta állapotból:
+ansible webservers -m yum -a "name=httpd state=absent" -i inventory --become
+
+# A playbook futtatása
+ansible-playbook -i inventory web-db.yaml
+
+1. Részletes módok
+-v → részletes kimenet (verbose)
+-vv, -vvv, -vvvv → még részletesebb, hibaelhárításra hasznos
+
+ansible-playbook -i inventory web-db.yaml -v
+ansible-playbook -i inventory web-db.yaml -vv
+
+2. Szintaxis ellenőrzés
+
+ansible-playbook -i inventory web-db.yaml --syntax-check
+Ez csak ellenőrzi, hogy helyes-e a YAML struktúra, nem futtat semmit.
+
+Típus = Ad Hoc, Mikor használjuk? = Egyszeri parancs, gyors teszt, Példa = ansible web01 -m ping -i inventory
+Típus = Playbook, Mikor használjuk? = Összetett, újrahasználható feladatlista, Példa = ansible-playbook web-db.yaml

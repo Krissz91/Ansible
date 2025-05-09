@@ -1,0 +1,53 @@
+# Előkészületek – új feladatmásolat és fájl létrehozása
+1. Készítsünk másolatot az előző gyakorlatból:
+cp -r exercise3/ exercise4
+cd exercise4
+
+2. Hozzunk létre egy HTML fájlt (ez lesz a tartalom, amit a webszerver kiszolgál majd):
+nano index.html
+Például tartalom:
+<h1>Üdvözöllek az Ansible által telepített webszerveren!</h1>
+
+# Ad Hoc parancsok – azonnali műveletek modulokkal
+1. yum modul – HTTPD telepítése 1 gépre
+ansible web01 -m ansible.builtin.yum -a "name=httpd state=present" -i inventory --become
+
+Mit csinál?
+web01 hoston fut
+-m ansible.builtin.yum: a yum modul a csomagkezelőt használja CentOS gépen
+-a "name=httpd state=present": telepíti a httpd csomagot, ha még nincs
+--become: root jogosultság kell (pl. sudo alatt)
+
+2. yum modul – HTTPD telepítése csoportosan
+ansible webservers -m ansible.builtin.yum -a "name=httpd state=present" -i inventory --become
+
+Mit csinál?
+A webservers csoport összes tagján lefuttatja ugyanazt a telepítést.
+
+3. yum modul – HTTPD eltávolítása
+ansible webservers -m ansible.builtin.yum -a "name=httpd state=absent" -i inventory --become
+
+Mit csinál?
+Eltávolítja a httpd csomagot minden web szerverről.
+
+4. service modul – Szolgáltatás indítása és engedélyezése
+ansible webservers -m ansible.builtin.service -a "name=httpd state=started enabled=yes" -i inventory --become
+
+Mit csinál?
+Elindítja az httpd szolgáltatást és bekapcsolja, hogy újraindítás után automatikusan elinduljon (enabled=yes).
+
+5. copy modul – Fájl másolása célgépre
+ansible webservers -m ansible.builtin.copy -a "src=index.html dest=/var/www/html/index.html" -i inventory --become
+
+Mit csinál?
+A helyi gépen található index.html fájlt átmásolja minden web szerverre a megadott helyre.
+Ha a fájl még nem létezik vagy megváltozik, az Ansible changed állapotot jelez.
+Ha nem történt változás, akkor ok jelenik meg.
+
+Tipp: Ez a módszer idempotens – csak akkor végez módosítást, ha tényleg szükséges.
+
+Teszt böngészőből
+Nyisd meg a web01 vagy web02 nyilvános IP-címét a böngészőben:
+http://<web01-public-ip>
+
+Ha minden jól ment, a saját index.html tartalmad fog megjelenni a böngészőben.

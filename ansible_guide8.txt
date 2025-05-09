@@ -1,0 +1,112 @@
+Kiindulás – Exercise8
+Már dolgozunk az exercise8 mappában.
+Ebben a részben megtanuljuk, hogyan lehet különböző szinteken (host, group, global) változókat definiálni és ezek prioritását kezelni.
+
+# 1. group_vars/all – Alapértelmezett érték minden gépre
+mkdir group_vars
+nano group_vars/all
+
+dbname: sky
+dbuser: pilot
+dbpass: aircraft
+
+Minden gépre hatással lesz, mert az inventory fájlban létezik all csoport.
+
+# 2. Módosítsuk a Playbookot – db.yaml
+nano db.yaml
+Kikommentáljuk vagy töröljük a vars: szekciót, mivel most a változók külső fájlból jönnek:
+
+- name: DBserver setup
+  hosts: dbservers
+  become: yes
+  # vars:
+  #   dbname: eletric
+  #   dbuser: current
+  #   dbpass: tesla
+
+  tasks:
+    - debug:
+        msg: "The dbname is {{ dbname }}"
+
+    - debug:
+        var: dbuser
+
+    ...
+
+Futtatás:
+ansible-playbook db.yaml
+
+Változók hierarchiája – gyakorlati teszt
+Most egy külön példán keresztül megnézzük, melyik változó honnan öröklődik és melyik az erősebb.
+
+# 3. Új gyakorlat: exercise9
+
+cp -r exercise8 exercise9
+cd exercise9
+rm db.yaml
+rm -rf group_vars
+
+# 4. Playbook írása: vars_precedence.yaml
+nano vars_precedence.yaml
+
+---
+- name: Understanding vars
+  hosts: all
+  become: yes
+  # vars:
+  #   USRNM: playuser
+  #   COMM: variable from playbook
+
+  tasks:
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ USRNM }}"
+        comment: "{{ COMM }}"
+      register: usrout
+
+    - debug:
+        var: usrout.name
+
+    - debug:
+        var: usrout.comment
+
+# 5. Csoportos változók létrehozása
+group_vars/all – minden host-ra érvényes
+mkdir group_vars
+nano group_vars/all
+
+USRNM: commonuser
+COMM: variable from groupvars_all file
+
+group_vars/webservers – csak a webserver csoport tagjaira
+nano group_vars/webservers
+
+USRNM: webgroup
+COMM: variable from groupvars/webservers file
+
+Futtatás:
+ansible-playbook vars_precedence.yaml
+
+Megfigyelés: a db01 host az all fájl értékeit kapja, míg web01 és web02 a webservers fájlból örököl.
+
+# 6. Egyedi hostváltozók – host_vars
+mkdir host_vars
+nano host_vars/web02
+
+USRNM: web02user
+COMM: variable from host_vars/web02 file
+
+Újrafuttatás:
+ansible-playbook vars_precedence.yaml
+
+Most:
+db01 → group_vars/all
+web01 → group_vars/webservers
+web02 → host_vars/web02
+
+# 7. Legerősebb: Playbook vagy CLI változók
+Ha kivesszük a kommenteket a Playbook vars: szekciójából, akkor ezek felülírják az összes előző értéket.
+Ha még ettől is erősebbet akarunk, akkor parancssorból adunk meg értéket:
+
+ansible-playbook -e USRNM=cliuser -e COMM=cliuser vars_precedence.yaml
+

@@ -1,0 +1,44 @@
+# Eddig az alapértelmezett globális Ansible konfiguráció volt érvényben:
+/etc/ansible/ansible.cfg
+De most megtanuljuk, hogyan használjunk saját projekt-specifikus konfigurációs fájlt
+– például ha az alapértelmezett SSH port (22) megváltozik biztonsági okokból.
+
+# Miért használjunk saját ansible.cfg fájlt?
+Teljes kontroll a beállítások felett projekt szinten.
+Nem kell globális konfigurációt módosítani.
+Különböző projektekhez más-más beállításokat használhatsz.
+Ha a fájl abban a mappában van, ahol a Playbook és Inventory, akkor Ansible automatikusan ezt használja.
+
+# Konfigurációs fájl létrehozása
+1.Navigáljunk az aktuális projekt mappába:
+cd ~/vprofile/exercise7/
+
+2.Hozzuk létre a ansible.cfg fájlt:
+nano ansible.cfg
+
+[defaults]
+host_key_checking = False           # Ne kérjen megerősítést az SSH kulcsról
+inventory = ./inventory            # Használja a helyi inventory fájlt
+forks = 5                          # Egyszerre hány gépen fusson párhuzamosan
+log_path = /var/log/ansible.log    # Log fájl elérési útja
+
+[privilege_escalation]
+become = True                      # Használjon sudo-t a root jogokhoz
+become_method = sudo
+become_ask_pass = False            # Ne kérjen jelszót (mert kulcsal hitelesítünk)
+
+# Playbook futtatása saját konfigurációval
+Mostantól már nem kell megadni a -i inventory kapcsolót, és az ansible.cfg miatt minden beállítást betölt:
+ansible-playbook db.yaml
+Megjegyzés: Első futáskor egy figyelmeztetést (warning) kaphatsz, ha a log fájl nem létezik.
+
+# Log fájl előkészítése
+Hozzuk létre manuálisan a log fájlt:
+
+sudo touch /var/log/ansible.log
+sudo chown ubuntu:ubuntu /var/log/ansible.log
+
+Magyarázat:
+touch: létrehozza az üres fájlt
+chown: megadja a tulajdonjogot az aktuális felhasználónak (pl. ubuntu, ha az a gép neve és user)
+Ha más a felhasználóneved, cseréld le ubuntu-ra azt, amit használsz (pl. ec2-user CentOS alatt).

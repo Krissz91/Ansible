@@ -1,0 +1,130 @@
+# Mi az a fact Ansible-ben?
+Az Ansible facts automatikusan begyűjtött rendszerjellemzők a célgépekről. Például:
+OS típusa, verziója
+Memória mérete
+IP-címek, hostname
+CPU infók
+SELinux állapot stb.
+
+# 1. Alap Playbook: vars_and_facts.yaml
+
+---
+- name: Understanding vars and facts
+  hosts: all
+  become: yes
+  gather_facts: False  # Kikapcsoljuk a facts begyűjtést csak teszthez
+  vars:
+    USRNM: playuser
+    COMM: variable from playbook
+
+  tasks:
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ USRNM }}"
+        comment: "{{ COMM }}"
+      register: usrout
+
+    - debug:
+        var: usrout.name
+
+    - debug:
+        var: usrout.comment
+
+gather_facts: False: ha ezt kikapcsolod, akkor nem gyűjt facts-et, azaz az ansible_ prefixű változók nem lesznek elérhetők.
+
+# 2. Facts megtekintése kézzel
+Futtasd ezt a parancsot egy adott gépre:
+ansible -m setup web01
+Ez egy hatalmas JSON-t ad vissza – minden automatikusan gyűjtött fact ott van benne.
+
+# 3. Playbook: print_facts.yaml – OS, RAM, SELinux stb.
+nano print_facts.yaml
+
+---
+- name: Print system facts
+  hosts: all
+  tasks:
+    - name: Print OS name
+      debug:
+        var: ansible_distribution
+
+    - name: Print SELinux mode
+      debug:
+        var: ansible_selinux.mode
+
+    - name: Print RAM (free memory in MB)
+      debug:
+        var: ansible_memory_mb.real.free
+
+    - name: Print Processor name
+      debug:
+        var: ansible_processor[2]
+
+Ezek a ansible_ prefixű változók a facts részei.
+
+# 4. Új EC2 példány hozzáadása az inventory fájlhoz
+Frissítsük a inventory fájlt:
+
+all:
+  hosts:
+    web01:
+      ansible_host: 172.31.83.148
+    web02:
+      ansible_host: 172.31.85.71
+    web03:                        # Új host
+      ansible_host: 172.31.18.137
+      ansible_user: ubuntu        # Ubuntu miatt más user kell!
+    db01:
+      ansible_host: 172.31.93.169
+
+  children:
+    webservers:
+      hosts:
+        web01:
+        web02:
+        web03
+    dbservers:
+      hosts:
+        db01
+    dc_oregon:
+      children:
+        webservers:
+        dbservers
+      vars:
+        ansible_user: ec2-user
+        ansible_ssh_private_key_file: clientkey.pem
+
+Mivel web03 Ubuntu alapú, ott ansible_user: ubuntu kell, nem ec2-user.
+
+# 5. Tesztelés és facts kilistázása
+Kapcsolatellenőrzés:
+ansible -m ping all
+
+Facts kiíratása:
+ansible-playbook print_facts.yaml
+
+Ekkor látni fogod:
+Melyik OS fut (Amazon Linux, CentOS, Ubuntu)
+RAM memória mennyisége
+SELinux állapota (ha van)
+Processzor típusa
+
+# Gyakran használt fact változók
+Fact változó			Mit jelent?
+ansible_distribution		OS neve (pl. Ubuntu, CentOS)
+ansible_memory_mb.real.free	Elérhető RAM MB-ban
+ansible_processor		Lista a processzor típusaival
+ansible_selinux.mode		SELinux állapota (pl. enforcing/permissive)
+ansible_hostname		A gép hostname-ja
+ansible_default_ipv4.address	Alapértelmezett IP-cím
+
+# Tipp: Custom facts szűrése
+Ha csak bizonyos facts-et szeretnél lekérni:
+ansible web01 -m setup -a 'filter=ansible_processor'
+
+# Összefoglalás
+Tulajdonság		Leírás
+gather_facts		Beállítja, hogy gyűjtse-e a facts változókat
+setup modul		Manuális facts lekérdezés modulja
+ansible_* változók	Beépített rendszerinfók, automatikusan elérhetők
+debug modul		Megnézhetjük bármelyik fact értékét

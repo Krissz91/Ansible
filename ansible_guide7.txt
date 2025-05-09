@@ -1,0 +1,98 @@
+# Előkészületek – új projektpéldány
+cp -r exercise7/ exercise8
+cd exercise8
+
+# Playbook: db.yaml – változókkal bővítve
+nano db.yaml
+
+- name: DBserver setup
+  hosts: dbservers
+  become: yes
+
+  vars:
+    dbname: eletric
+    dbuser: current
+    dbpass: tesla
+
+  tasks:
+
+    - name: Print dbname variable
+      debug:
+        msg: "The dbname is {{ dbname }}"
+
+    - name: Print dbuser variable
+      debug:
+        var: dbuser
+
+    - name: Install mariadb-server
+      ansible.builtin.yum:
+        name: mariadb-server
+        state: present
+
+    - name: Install PyMySQL
+      ansible.builtin.yum:
+        name: python3-PyMySQL
+        state: present
+
+    - name: Start mariadb service
+      ansible.builtin.service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Create a new database
+      community.mysql.mysql_db:
+        name: "{{ dbname }}"
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Create database user
+      community.mysql.mysql_user:
+        name: "{{ dbuser }}"
+        password: "{{ dbpass }}"
+        priv: '*.*:ALL'
+        state: present
+        login_unix_socket: /var/lib/mysql/mysql.sock
+      register: dbout  # 💾 VÁLTOZÓBA MENTÉS
+
+    - name: Print dbout result
+      debug:
+        var: dbout
+
+# Magyarázat – mi történik itt?
+vars szekció
+A vars: alatt változókat definiálunk, amelyek értékei később sablon formában ({{ variable_name }}) hivatkozhatók.
+
+vars:
+  dbname: eletric
+  dbuser: current
+  dbpass: tesla
+
+Ezután ezeket a változókat használjuk az adatbázis és felhasználó létrehozásánál.
+
+# debug modul
+A debug: modul lehetővé teszi, hogy változók értékét kiírjuk futás közben – kiváló hibakereséshez!
+
+- debug:
+    var: dbuser
+
+vagy:
+
+- debug:
+    msg: "The dbname is {{ dbname }}"
+
+# register és visszajelzés
+Az ansible.builtin.register kulcsszóval elmentjük egy feladat kimenetét egy változóba (dbout), majd azt a debug modullal kiírjuk.
+Ez segít például eldönteni, hogy egy feladat sikeresen lefutott-e, és milyen információkat adott vissza.
+
+# Futtatás
+ansible-playbook db.yaml
+
+Ha részletesebb visszajelzést szeretnél:
+ansible-playbook db.yaml -v
+ansible-playbook db.yaml -vvv
+
+Nélkül = name: accounts, Változóval = name: "{{ dbname }}"
+Nélkül = password: 123, Változóval = password: "{{ dbpass }}"
+
+Összefoglalva: a változók növelik a rugalmasságot, olvashatóságot és újrahasználhatóságot. Ez az első lépés a dinamikus Ansible Playbook felé
