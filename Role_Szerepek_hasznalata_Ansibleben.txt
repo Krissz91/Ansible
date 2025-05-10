@@ -1,0 +1,139 @@
+# Mi az a Role?
+A role egy előre meghatározott mappastruktúra és logika, amelyben külön fájlokba rendezheted a Playbook komponenseit:
+
+tasks, vars, defaults, handlers, files, templates, stb.
+
+Előnye:
+Tiszta struktúra
+Újrahasznosítható
+Egyszerű integráció Galaxy-ról
+
+# 1.Alapstruktúra létrehozása – Exercise14
+cp -r exercise13/ exercise14
+cd exercise14
+
+# 2. Minimál Playbook átírása
+nano provisioning.yaml
+
+Új tartalom:
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+  roles:
+    - post-install
+
+# 3. Role struktúra létrehozása
+mkdir roles
+cd roles
+ansible-galaxy init post-install
+
+Ez létrehoz egy szerepkönyvtárat roles/post-install/ alatt, előre definiált almappákkal (tasks, handlers, vars, templates, stb.)
+
+# 4. Adatok átszervezése
+a) Átmozgatás:
+cp files/* roles/post-install/files/
+cp templates/* roles/post-install/templates/
+rm -r files templates
+
+b) Átnevezés (template fájlokat):
+cd roles/post-install/templates
+mv ntpconf_centos ntpconf_centos.j2
+mv ntpconf_ubuntu ntpconf_ubuntu.j2
+
+# 5. Változók kezelése
+a) vars/main.yaml → defaults/main.yaml:
+nano roles/post-install/vars/main.yaml
+
+Másold át innen a változókat:
+
+USRNM: commonuser
+COMM: variable from groupvars_all file
+mydir: /opt/dir22
+ntp0: 0.north-america.pool.ntp.org
+ntp1: 1.north-america.pool.ntp.org
+ntp2: 2.north-america.pool.ntp.org
+ntp3: 3.north-america.pool.ntp.org
+
+Majd töröld a vars/ mappát, és illeszd be ezeket a:
+nano roles/post-install/defaults/main.yaml
+
+A defaults alacsonyabb prioritású, ezért felülírható a Playbookban.
+
+# 6. Tasks és Handlers beillesztése
+tasks/main.yaml:
+nano roles/post-install/tasks/main.yaml
+
+Ide kerülnek az összes feladatok a korábbi provisioning.yaml-ból, a handlers: előtti rész.
+
+Ne feledd módosítani a fájlhivatkozásokat:
+src: files/myfile.txt → src: myfile.txt
+src: templates/ntpconf_centos → src: ntpconf_centos.j2
+
+handlers/main.yaml:
+nano roles/post-install/handlers/main.yaml
+
+Ide kerülnek a handlers: alatti tartalmak.
+
+# 7. Playbook futtatása
+cd ~/vprofile/exercise14
+ansible-playbook provisioning.yaml
+
+# 8. Változók felülírása a Playbookból – Exercise15
+cp -r exercise14 exercise15
+cd exercise15
+
+a) vars/main.yaml → tartalmát töröljük
+nano roles/post-install/vars/main.yaml
+
+Ne töröld az első 2 sort (---, stb.), csak az értékeket.
+
+b) defaults/main.yaml → bemásoljuk a korábbi változókat
+nano roles/post-install/defaults/main.yaml
+
+c) provisioning.yaml módosítása:
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+  roles:
+    - role: post-install
+      vars:
+        ntp0: 0.in.pool.ntp.org
+        ntp1: 1.in.pool.ntp.org
+        ntp2: 2.in.pool.ntp.org
+        ntp3: 3.in.pool.ntp.org
+
+Most már a playbookban definiált NTP szervereket fogja használni – felülírva az alapértelmezetteket.
+
+# 9. Külső szerepek használata – Ansible Galaxy
+ansible-galaxy install geerlingguy.java
+
+Ez letölti a közösségi szerepet a ~/.ansible/roles/ mappába.
+
+provisioning.yaml frissítése:
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+  roles:
+    - geerlingguy.java
+    - role: post-install
+      vars:
+        ntp0: 0.in.pool.ntp.org
+        ntp1: 1.in.pool.ntp.org
+        ntp2: 2.in.pool.ntp.org
+        ntp3: 3.in.pool.ntp.org
+
+# 10. Struktúra ellenőrzése
+cd ~/.ansible/roles/
+tree geerlingguy.java
+
+Itt találhatók a Galaxy-ról telepített role-ok.
+
+# Összefoglalás – Miért érdemes role-t használni?
+Előny			Leírás
+Modularitás		Logikusan külön szedett részek (tasks, handlers, vars, stb.)
+Újrahasznosíthatóság	Több projektben is használható
+Tisztaság		A fő playbook szinte csak szerepeket tartalmaz
+Integráció		ansible-galaxy használatával közösségi role-ok letölthetők

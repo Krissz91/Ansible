@@ -1,0 +1,132 @@
+# Mi az a handler?
+A handler egy speciális task, amit csak akkor futtat az Ansible, ha egy másik feladat (task) "changed" státuszt ad vissza.
+
+Akkor használjuk például:
+szolgáltatások újraindítására, ha konfiguráció változott
+cache ürítésre, ha sablon frissült
+újrafelhasználható műveletekre, amiket nem akarunk mindig lefuttatni
+
+# Gyakorlat: exercise13
+Másolat készítése:
+cp -r exercise12/ exercise13
+cd exercise13
+
+# Playbook: provisioning.yaml (handler-rel bővítve)
+
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Install packages on CentOS
+      yum:
+        name: "{{ item }}"
+        state: present
+      when: ansible_distribution == "CentOS"
+      loop:
+        - chrony
+        - wget
+        - git
+        - zip
+        - unzip
+
+    - name: Install packages on Ubuntu
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+      loop:
+        - ntp
+        - wget
+        - git
+        - zip
+        - unzip
+
+    - name: Start service on CentOS
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: Start service on Ubuntu
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Banner file
+      copy:
+        content: '# This server is managed by Ansible. No manual changes please!'
+        dest: /etc/motd
+
+    - name: Create a folder
+      file:
+        path: /opt/test21
+        state: directory
+
+    - name: Deploy NTP config on CentOS
+      template:
+        src: templates/ntpconf_centos
+        dest: /etc/chrony.conf
+        backup: yes
+      when: ansible_distribution == "CentOS"
+      notify: reStart service on CentOS  # ⬅️ csak akkor fut, ha "changed"
+
+    - name: Deploy NTP config on Ubuntu
+      template:
+        src: templates/ntpconf_ubuntu
+        dest: /etc/ntpsec/ntp.conf
+        backup: yes
+      when: ansible_distribution == "Ubuntu"
+      notify: reStart service on Ubuntu
+
+  handlers:
+    - name: reStart service on CentOS
+      service:
+        name: chronyd
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: reStart service on Ubuntu
+      service:
+        name: ntp
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+# Hogyan működik?
+A notify: kulcsszó egy handlerre mutat.
+A handler csak akkor fut le, ha az adott task changed státuszt eredményez.
+Több task is hivatkozhat ugyanarra a handlerre – az egyszer lefut, a play végén.
+
+# Playbook futtatása
+ansible-playbook provisioning.yaml
+
+Ha nincs változás, a handler nem fut le → Minden zöld (ok).
+
+# Teszteljük a változást
+1.Módosítsd a templates/ntpconf_centos fájlt:
+nano templates/ntpconf_centos
+
+Például:
+# új megjegyzés vagy szóköz
+
+2.Futtasd újra:
+ansible-playbook provisioning.yaml
+
+Most megjelenik:
+TASK [Deploy NTP config on CentOS] => changed
+RUNNING HANDLER [reStart service on CentOS] => changed
+
+# Handler használat előnyei
+Funkció			Előny
+notify + handlers	Csak változás esetén hajt végre extra műveletet
+Automatikus		Nem kell kézzel figyelni, Ansible kezeli
+Idempotens		Elkerülhetők a felesleges újraindítások, szolgáltatásstopok
+Újrafelhasználható	Több task is hivatkozhat egy handlerre

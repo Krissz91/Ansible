@@ -1,9 +1,0 @@
-A Decision Making Ansible-ben azt jelenti, hogy feltételes logikát használunk annak eldöntésére,
-hogy egy adott feladat (task) lefusson-e vagy sem – azaz dinamikusan hozunk döntéseket a gépek állapota,
-tulajdonságai vagy változók alapján.
-
-Alapelv
-Ansible-ben a when kulcsszóval feltételesen hajtunk végre egy-egy taskot.
-Ez alapján döntést hozunk: ha ez igaz, akkor csináld; ha nem, akkor hagyd ki.
-
-

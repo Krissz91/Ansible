@@ -1,0 +1,70 @@
+A Decision Making Ansible-ben azt jelenti, hogy feltételes logikát használunk annak eldöntésére,
+hogy egy adott feladat (task) lefusson-e vagy sem – azaz dinamikusan hozunk döntéseket a gépek állapota,
+tulajdonságai vagy változók alapján.
+
+Alapelv
+Ansible-ben a when kulcsszóval feltételesen hajtunk végre egy-egy taskot.
+Ez alapján döntést hozunk: ha ez igaz, akkor csináld; ha nem, akkor hagyd ki.
+
+Példa: provisioning.yaml
+
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Install NTP agent on CentOS
+      yum:
+        name: chrony
+        state: present
+      when: ansible_distribution == "CentOS"
+
+    - name: Install NTP agent on Ubuntu
+      apt:
+        name: ntp
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Start NTP service on CentOS
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: Start NTP service on Ubuntu
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+Magyarázat:
+ansible_distribution egy fact, amely megmondja az operációs rendszer nevét (pl. "CentOS", "Ubuntu").
+A when feltétel kiértékeli az adott gépen futó OS-t.
+Így a chrony csak CentOS rendszeren, míg az ntp csak Ubuntu rendszeren fog települni és elindulni.
+
+Miért fontos?
+Ugyanaz a Playbook képes többféle rendszeren különbözően viselkedni.
+Nagyon fontos multi-platform automatizálásnál.
+when feltételhez használhatsz változókat, facts-eket, regisztrált eredményeket, stb.
+
+További példák when feltételekre:
+
+when: ansible_facts['os_family'] == "RedHat"
+when: my_var is defined
+when: "'web' in group_names"
+when: install_package == true
+
+Futtatás:
+ansible-playbook provisioning.yaml
+
+A Playbook automatikusan eldönti minden gépen:
+Melyik csomagot kell telepíteni
+Melyik szolgáltatást kell elindítani
+
+when			=	Feltétel megadása, mikor fusson egy task
+facts vagy változók	=	Alapja a döntéshozatalnak
+Célja			=	Rugalmas, adaptív automatizálás OS-től, állapottól függően

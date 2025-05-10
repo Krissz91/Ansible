@@ -1,0 +1,144 @@
+# Előkészítés – új projektpéldány
+cp -r exercise11/ exercise12
+cd exercise12
+
+# Playbook: provisioning.yaml – modulokkal kiegészítve
+
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+
+  tasks:
+
+    # Csomagtelepítés CentOS-ra loop-pal
+    - name: Install packages on CentOS
+      yum:
+        name: "{{ item }}"
+        state: present
+      when: ansible_distribution == "CentOS"
+      loop:
+        - chrony
+        - wget
+        - git
+        - zip
+        - unzip
+
+    # Csomagtelepítés Ubuntu-ra loop-pal
+    - name: Install packages on Ubuntu
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+      loop:
+        - ntp
+        - wget
+        - git
+        - zip
+        - unzip
+
+    # Szolgáltatás indítása CentOS-on
+    - name: Start service on CentOS
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    # Szolgáltatás indítása Ubuntu-n
+    - name: Start service on Ubuntu
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    # MOTD fájl írása (banner)
+    - name: Banner file
+      copy:
+        content: '# This server is managed by Ansible. No manual changes please!'
+        dest: /etc/motd
+
+    # NTP konfiguráció CentOS-ra template alapján
+    - name: Deploy ntp agent conf on CentOS
+      template:
+        src: templates/ntpconf_centos
+        dest: /etc/chrony.conf
+        backup: yes
+      when: ansible_distribution == "CentOS"
+
+    # konfiguráció Ubuntu-ra template alapján
+    - name: Deploy ntp agent conf on Ubuntu
+      template:
+        src: templates/ntpconf_ubuntu
+        dest: /etc/ntpsec/ntp.conf
+        backup: yes
+      when: ansible_distribution == "Ubuntu"
+
+    # Szolgáltatás újraindítása CentOS-on
+    - name: Restart service on CentOS
+      service:
+        name: chronyd
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    # Szolgáltatás újraindítása Ubuntu-n
+    - name: Restart service on Ubuntu
+      service:
+        name: ntp
+        state: restarted
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+    # Mappa létrehozása
+    - name: Create a folder
+      file:
+        path: /opt/test21
+        state: directory
+
+# Modulmagyarázat:
+Modul		Leírás
+copy		Fájl vagy szöveg másolása a célgépre
+template	Jinja2 sablont dolgoz fel, és helyettesíti a változókat
+file		Fájl vagy mappa létrehozása, jogosultságkezelés stb.
+
+# Templates mappa létrehozása
+mkdir templates
+
+Majd hozzuk létre a fájlokat:
+nano templates/ntpconf_centos
+
+Tartalom:
+pool "{{ ntp0 }}" iburst
+pool "{{ ntp1 }}" iburst
+pool "{{ ntp2 }}" iburst
+pool "{{ ntp3 }}" iburst
+
+És:
+nano templates/ntpconf_ubuntu
+
+Tartalom ugyanaz, de más útvonalra kerül majd.
+
+# group_vars/all – változók sablonhoz
+nano group_vars/all
+
+Tartalom:
+USRNM: commonuser
+COMM: variable from groupvars_all file
+ntp0: 0.north-america.pool.ntp.org
+ntp1: 1.north-america.pool.ntp.org
+ntp2: 2.north-america.pool.ntp.org
+ntp3: 3.north-america.pool.ntp.org
+
+Ezeket használja a template fájl Jinja2-ben.
+
+# Playbook futtatása
+ansible-playbook provisioning.yaml
+
+# Modulok gyakorlati összehasonlítása
+Modul		Használat célja					Példa
+copy		Statikus fájl vagy szöveg másolása		banner, pl. /etc/motd
+template	Dinamikus fájl sablon, változókkal		ntp.conf generálása
+file		Fájlrendszer elem létrehozása (mappa, fájl)	pl. /opt/test21 létrehozása

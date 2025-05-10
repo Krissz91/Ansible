@@ -1,0 +1,105 @@
+# Mi az a loop?
+A loop: kulcsszó segítségével ugyanazt a feladatot többször hajtjuk végre, változó értékekkel.
+Ez segít elkerülni a kódismétlést, és tisztább, karbantarthatóbb playbookokat eredményez.
+
+# Gyakorlat: Exercise11
+1. Készítsünk új másolatot:
+cp -r exercise10/ exercise11
+cd exercise11
+
+2.Szerkesszük a provisioning.yaml fájlt:
+nano provisioning.yaml
+
+# Playbook: Csomagok telepítése loop-pal
+
+---
+- name: Provisioning services
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install packages on CentOS
+      yum:
+        name: "{{ item }}"
+        state: present
+      when: ansible_distribution == "CentOS"
+      loop:
+        - chrony
+        - wget
+        - git
+        - zip
+        - unzip
+
+    - name: Install packages on Ubuntu
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+      loop:
+        - ntp
+        - wget
+        - git
+        - zip
+        - unzip
+
+    - name: Start NTP service on CentOS
+      service:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ansible_distribution == "CentOS"
+
+    - name: Start NTP service on Ubuntu
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+      when: ansible_distribution == "Ubuntu"
+
+# Magyarázat:
+loop: → Lista, amin végigmegy az adott task
+item → Automatikusan beépített változó, amely a lista aktuális elemét tartalmazza
+when: → Továbbra is ellenőrizzük az OS típust (decision making)
+
+Tipp: Az item kulcsszót lehet átnevezni, de alapértelmezetten ezt használjuk.
+
+# Futtatás:
+ansible-playbook provisioning.yaml
+
+A Playbook minden gépen:
+telepíti a megfelelő csomagokat a megfelelő csomagkezelővel (yum vagy apt)
+elindítja az időszinkronizációs szolgáltatást
+
+# Alternatív loop szintaxis (újabb Ansible verziókban)
+loop: "{{ packages }}"
+vars:
+  packages:
+    - wget
+    - git
+    - curl
+
+Érdemes így strukturálni, ha több feladatban is használni szeretnéd ugyanazt a listát.
+
+# Loop + register kombináció
+Ha minden loop-iteráció eredményét rögzíteni akarod:
+
+- name: Telepítés
+  yum:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - wget
+    - git
+  register: result
+
+- debug:
+    var: result
+Ez egy összetett listaobjektumot ad vissza, amely minden telepítési kísérlet részletes kimenetét tartalmazza.
+
+Összefoglalás:
+Eszköz		=	Cél
+loop:		=	Több értéken végigmenni ugyanazzal a feladattal
+item		=	A lista aktuális eleme
+register + loop	=	Minden iteráció eredményét elmenteni
+when		=	Logikai feltétel a loop előtt/után
