@@ -168,4 +168,3 @@ ansible-galaxy collection install community.mysql --force
         priv: '*.*:ALL'
         state: present
         login_unix_socket: /var/lib/mysql/mysql.sock
-

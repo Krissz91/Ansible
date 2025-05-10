@@ -109,4 +109,3 @@ Ha kivesszük a kommenteket a Playbook vars: szekciójából, akkor ezek felül�
 Ha még ettől is erősebbet akarunk, akkor parancssorból adunk meg értéket:
 
 ansible-playbook -e USRNM=cliuser -e COMM=cliuser vars_precedence.yaml
-
