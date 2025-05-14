@@ -60,7 +60,7 @@
         dest: /etc/chrony.conf
         backup: yes
       when: ansible_distribution == "CentOS"
-      notify: reStart service on CentOS  # ⬅️ csak akkor fut, ha "changed"
+      notify: reStart service on CentOS  # csak akkor fut, ha "changed"
 
     - name: Deploy NTP config on Ubuntu
       template:
